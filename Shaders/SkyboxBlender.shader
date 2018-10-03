@@ -89,7 +89,7 @@ Shader "SkyboxBlender/BlendedSkybox" {
 				c = max(0, c1 - c2 * _Blend);
 			} else if (_BlendMode == 4) {
 				//Multiply
-				c = c1 * c2 / c2;// lerp(c2, 1, _Blend);
+				c = c1 * lerp(1, c2, _Blend);
 			}
 
 			
