@@ -91,6 +91,10 @@ Shader "SkyboxBlender/BlendedSkybox" {
 				//Multiply
 				c = c1 * lerp(1, c2, _Blend);
 			}
+			else if (_BlendMode == 5) {
+				//Smoothstep
+				c = lerp(c1, c2, smoothstep(0, 1, _Blend));
+			}
 
 			
 			c = c * _Tint.rgb * unity_ColorSpaceDouble;

@@ -3,37 +3,32 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
+[ExecuteInEditMode]
 public class SkyboxBlender : MonoBehaviour {
 
-    public enum BlendMode { Linear, Maximum, Add, Substract, Multiply }
-    public enum ProbeResolution { _16, _32, _64, _128, _256, _512, _1024, _2048 }
+    [SerializeField] public enum BlendMode { Linear, Smoothstep, Maximum, Add, Substract, Multiply }
+    [SerializeField] public enum ProbeResolution { _16, _32, _64, _128, _256, _512, _1024, _2048 }
 
-    [Header("Input Skyboxes")]
-    public Material skyBox1;
-    public Material skyBox2;
+    //[Header("Input Skyboxes")]
+    [SerializeField] public Material skyBox1;
+    [SerializeField] public Material skyBox2;
 
-    [Header("Blended Skybox")]
-    public Material blendedSkybox;
-    [Range(0, 8)] public float exposure = 1;
-    [Range(0, 360)] public float rotation = 0;
-    public Color tint = Color.white;
-    [Range(0, 1)] public float invertColors = 0;
-    public BlendMode blendMode = BlendMode.Linear;
-    [Range(0, 1)] public float blend = 0;
+    //[Header("Blended Skybox")]
+    [SerializeField] public Material blendedSkybox;
+    [SerializeField] [Range(0, 8)] public float exposure = 1;
+    [SerializeField] [Range(0, 360)] public float rotation = 0;
+    [SerializeField] public Color tint = Color.white;
+    [SerializeField] [Range(0, 1)] public float invertColors = 0;
+    [SerializeField] public BlendMode blendMode = BlendMode.Linear;
+    [SerializeField] [Range(0, 1)] public float blend = 0;
 
-    public bool bindOnStart = true;
-    public bool updateLightingEveryFrame = true;
-    public bool updateReflectionsEveryFrame = true;
+    [SerializeField] public bool bindOnStart = true;
+    [SerializeField] public bool updateLightingOnStart = true;
+    [SerializeField] public bool updateLightingEveryFrame = true;
+    [SerializeField] public bool updateReflectionsOnStart = true;
+    [SerializeField] public bool updateReflectionsEveryFrame = true;
 
-    public ProbeResolution reflectionResolution = ProbeResolution._128;
-
-    public bool updateInEditMode = true;
-
-    [Header("Lazy Buttons")]
-    public bool bindTextures;
-    public bool initialize;
-    public bool updateLighting;
-    public bool updateReflections;
+    [SerializeField] public ProbeResolution reflectionResolution = ProbeResolution._128;
 
     private ReflectionProbe probeComponent = null;
     private GameObject probeGameObject = null;
@@ -51,64 +46,38 @@ public class SkyboxBlender : MonoBehaviour {
         //Update the material parameters
         UpdateBlendedMaterialParameters();
 
-        //Create the reflection probe
-        UpdateReflectionProbe();
+        if (updateLightingOnStart)
+            UpdateLighting();
+
+        if (updateReflectionsOnStart)
+            UpdateReflections();
     }
 	
 	// Update is called once per frame
 	void Update () {
 
-        //Lazy buttons
-        if (bindTextures)
-        {
-            BindTextures();
-            bindTextures = false;
-        }
-
-        if (initialize)
-        {
-            Start();
-            initialize = false;
-        }
-
-        if (updateLighting)
-        {
-            UpdateLighting();
-            updateLighting = false;
-        }
-
-        if (updateReflections)
-        {
-            UpdateReflections();
-            updateReflections = false;
-        }
-
         //Update material parameters
         UpdateBlendedMaterialParameters();
-
-        //Update reflections
-        if (updateReflectionsEveryFrame)
-            UpdateReflections();
 
         //Update lighting
         if (updateLightingEveryFrame)
             UpdateLighting();
+
+        //Update reflections
+        if (updateReflectionsEveryFrame)
+            UpdateReflections();
     }
     
+    /*
     private void OnValidate()
     {
         if (!updateInEditMode)
             return;
 
-        //Update the reflection probe parameters
-        UpdateReflectionProbe();
-
         Update();
-
-        UpdateReflections();
-        UpdateLighting();
     }
-    
+    */
+
     #endregion 
 
     /// <summary>
@@ -158,11 +127,31 @@ public class SkyboxBlender : MonoBehaviour {
 
         probeComponent = probeGameObject.GetComponent<ReflectionProbe>();
 
-        if (!probeComponent)
+        if (probeComponent)
         {
-            // Create a Reflection Probe that only contains the Skybox. The Update function controls the Reflection Probe refresh.
-            probeComponent = probeGameObject.AddComponent<ReflectionProbe>() as ReflectionProbe;
+            DestroyImmediate(probeComponent);
         }
+
+        // Create a Reflection Probe that only contains the Skybox. The Update function controls the Reflection Probe refresh.
+        probeComponent = probeGameObject.AddComponent<ReflectionProbe>() as ReflectionProbe;
+
+    }
+
+    /// <summary>
+    /// Update the reflection probe and cubemap
+    /// </summary>
+    public void UpdateReflectionProbe()
+    {
+        //if (!probeGameObject || !probeComponent)
+            CreateReflectionProbe();
+
+        probeComponent.resolution = GetProbeResolution(reflectionResolution);
+        probeComponent.size = new Vector3(1, 1, 1);
+        probeComponent.cullingMask = 0;
+        probeComponent.clearFlags = ReflectionProbeClearFlags.Skybox;
+        probeComponent.mode = ReflectionProbeMode.Realtime;
+        probeComponent.refreshMode = ReflectionProbeRefreshMode.ViaScripting;
+        probeComponent.timeSlicingMode = ReflectionProbeTimeSlicingMode.NoTimeSlicing;
 
         // A cubemap is used as a default specular reflection.
         blendedCubemap = new Cubemap(probeComponent.resolution, probeComponent.hdr ? TextureFormat.RGBAHalf : TextureFormat.RGBA32, true);
@@ -173,26 +162,9 @@ public class SkyboxBlender : MonoBehaviour {
     }
 
     /// <summary>
-    /// Update the reflection probe
-    /// </summary>
-    void UpdateReflectionProbe()
-    {
-        if (!probeGameObject || !probeComponent)
-            CreateReflectionProbe();
-
-        probeComponent.resolution = GetProbeResolution(reflectionResolution);
-        probeComponent.size = new Vector3(1, 1, 1);
-        probeComponent.cullingMask = 0;
-        probeComponent.clearFlags = ReflectionProbeClearFlags.Skybox;
-        probeComponent.mode = ReflectionProbeMode.Realtime;
-        probeComponent.refreshMode = ReflectionProbeRefreshMode.ViaScripting;
-        probeComponent.timeSlicingMode = ReflectionProbeTimeSlicingMode.NoTimeSlicing;
-    }
-
-    /// <summary>
     /// Update the scene environment lighting
     /// </summary>
-    void UpdateLighting()
+    public void UpdateLighting()
     {
         DynamicGI.UpdateEnvironment();
     }
@@ -200,8 +172,11 @@ public class SkyboxBlender : MonoBehaviour {
     /// <summary>
     /// Update the scene environment reflections
     /// </summary>
-    void UpdateReflections()
+    public void UpdateReflections()
     {
+        if (!probeGameObject || !probeComponent)
+            UpdateReflectionProbe();
+
         // The Update function refreshes the Reflection Probe and copies the result to the default specular reflection Cubemap.
 
         // The texture associated with the real-time Reflection Probe is a render target and RenderSettings.customReflection is a Cubemap. We have to check the support if copying from render targets to Textures is supported.
@@ -213,8 +188,15 @@ public class SkyboxBlender : MonoBehaviour {
             {
                 if (probeComponent.IsFinishedRendering(renderId))
                 {
+                    //Debug.Log("probeComponent.texture.width = " + probeComponent.texture.width + " blendedCubemap.width = "+ blendedCubemap.width);
+                    //Debug.Log("probeComponent.texture.height = " + probeComponent.texture.height + " blendedCubemap.height = " + blendedCubemap.height);
+                    //Debug.Log("probeComponent.resolution = " + probeComponent.resolution);
                     // After the previous RenderProbe is finished, we copy the probe's texture to the cubemap and set it as a custom reflection in RenderSettings.
-                    Graphics.CopyTexture(probeComponent.texture, blendedCubemap as Texture);
+                    if (probeComponent.texture.width == blendedCubemap.width && probeComponent.texture.height == blendedCubemap.height)
+                    {
+                        Graphics.CopyTexture(probeComponent.texture, blendedCubemap as Texture);
+                        //Debug.Log("Copying");
+                    }
 
                     RenderSettings.customReflection = blendedCubemap;
                 }
@@ -233,6 +215,8 @@ public class SkyboxBlender : MonoBehaviour {
         {
             case BlendMode.Linear:
                 return 0;
+            case BlendMode.Smoothstep:
+                return 5;
             case BlendMode.Maximum:
                 return 1;
             case BlendMode.Add:
@@ -249,7 +233,7 @@ public class SkyboxBlender : MonoBehaviour {
     /// <summary>
     /// Bind the input skyboxes textures to the blended skybox
     /// </summary>
-    void BindTextures()
+    public void BindTextures()
     {
         blendedSkybox.SetTexture("_FrontTex_1", skyBox1.GetTexture("_FrontTex"));
         blendedSkybox.SetTexture("_BackTex_1", skyBox1.GetTexture("_BackTex"));
