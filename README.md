@@ -14,3 +14,7 @@ A tool to blend skyboxes in Unity with realtime environment lighting and reflect
 - To update the reflection probe resolution after changing it, use the Update Probe button.
 - The script executes in edit mode to visualize the blend result in the editor, you can disable it by removing the [ExecuteInEditMode] tag in the SkyboxBlender script.
 - The input skyboxes materials are expected to use the Unity built-in Skybox/6-sided shader.
+
+## Known Issues
+
+- The reflection update does not always work properly when not updating every frames.
